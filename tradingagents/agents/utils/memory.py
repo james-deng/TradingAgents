@@ -5,11 +5,15 @@ from openai import OpenAI
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
-            self.embedding = "nomic-embed-text"
+        embedding_backend = config.get("embedding_backend_url", config["backend_url"])
+        if embedding_backend == "http://localhost:11434/v1":
+            self.embedding = config.get("embedding_model", "nomic-embed-text")
         else:
-            self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+            self.embedding = config.get("embedding_model", "text-embedding-3-small")
+        self.client = OpenAI(
+            base_url=embedding_backend,
+            api_key=config.get("embedding_api_key"),
+        )
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 

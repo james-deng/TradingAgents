@@ -43,6 +43,50 @@ from .reflection import Reflector
 from .signal_processing import SignalProcessor
 
 
+def _get_provider_api_key(provider: str) -> Optional[str]:
+    """Fetch the correct API key for the configured provider."""
+    provider = provider.lower()
+    provider_env_map = {
+        "openai": "OPENAI_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+    }
+    env_var = provider_env_map.get(provider)
+    if not env_var:
+        # Providers like Ollama don't require API keys
+        return None
+
+    api_key = os.getenv(env_var)
+    if not api_key:
+        raise ValueError(
+            f"Missing required environment variable '{env_var}' for provider '{provider}'."
+        )
+    return api_key
+
+
+def _resolve_embedding_settings(provider: str, config: Dict[str, Any]) -> Tuple[str, Optional[str]]:
+    """Determine which backend and API key to use for embeddings."""
+    backend_url = config.get("backend_url", "https://api.openai.com/v1")
+
+    # Ollama runs locally and supports its own embedding model
+    if backend_url == "http://localhost:11434/v1":
+        return backend_url, config.get("llm_api_key")
+
+    # OpenAI's native API already supports embeddings
+    if provider == "openai":
+        return backend_url, config.get("llm_api_key")
+
+    # For other providers (DeepSeek, OpenRouter, etc.) fall back to OpenAI embeddings
+    embedding_base = os.getenv("OPENAI_EMBEDDING_BASE_URL", "https://api.openai.com/v1")
+    embedding_key = os.getenv("OPENAI_EMBEDDING_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not embedding_key:
+        raise ValueError(
+            "OPENAI_API_KEY (or OPENAI_EMBEDDING_API_KEY) is required to generate embeddings "
+            f"when using provider '{provider}'."
+        )
+    return embedding_base, embedding_key
+
+
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
@@ -61,6 +105,14 @@ class TradingAgentsGraph:
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
+        self.config["llm_provider"] = self.config["llm_provider"].lower()
+
+        provider = self.config["llm_provider"]
+        api_key = _get_provider_api_key(provider)
+        self.config["llm_api_key"] = api_key
+        embedding_base, embedding_key = _resolve_embedding_settings(provider, self.config)
+        self.config["embedding_backend_url"] = embedding_base
+        self.config["embedding_api_key"] = embedding_key
 
         # Update the interface's config
         set_config(self.config)
@@ -72,13 +124,22 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "anthropic":
+        provider = self.config["llm_provider"]
+        if provider in ("openai", "ollama", "openrouter", "deepseek"):
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
+                api_key=self.config.get("llm_api_key"),
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"],
+                api_key=self.config.get("llm_api_key"),
+            )
+        elif provider == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "google":
+        elif provider == "google":
             self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
             self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
         else:
