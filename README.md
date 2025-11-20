@@ -112,6 +112,17 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+### Environment variables
+
+You will need provider keys for LLMs and Alpha Vantage (for fundamentals/news by default). Export them or set them in `.env`:
+```bash
+export OPENAI_API_KEY=...
+export ALPHA_VANTAGE_API_KEY=...
+export DEEPSEEK_API_KEY=...          # when using DeepSeek
+export OPENROUTER_API_KEY=...        # when using OpenRouter
+```
+You can also copy `.env.example` to `.env` and fill the values.
+
 ### Required APIs
 
 You will need the OpenAI API for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration).
@@ -150,6 +161,39 @@ An interface will appear showing results as they load, letting you track the age
 <p align="center">
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
+
+### Local Flask web app (simple UI)
+
+A minimal web UI lives in `webapp/` and reuses the same engine:
+1) Install deps (see above) and set your API keys (see Environment variables).
+2) Start the server:
+   - PowerShell:
+     ```powershell
+     $env:FLASK_APP='webapp.app'; flask run --reload --port 8000
+     ```
+   - Bash:
+     ```bash
+     FLASK_APP=webapp.app flask run --reload --port 8000
+     ```
+3) Open http://localhost:8000/ and fill the form (ticker, date, provider, models, analysts). Click **Run** to execute; you’ll get the decision and report sections inline.
+
+Routes you can call directly:
+- `GET /health` basic check
+- `GET /metadata` selection lists (providers, models, analysts, research depths)
+- `POST /run` JSON body:
+  ```json
+  {
+    "ticker": "NVDA",
+    "analysis_date": "2024-05-10",
+    "provider": "openai",
+    "backend_url": "https://api.openai.com/v1",
+    "shallow_thinker": "gpt-4o-mini",
+    "deep_thinker": "o4-mini",
+    "analysts": ["market","social","news","fundamentals"],
+    "research_depth": 1
+  }
+  ```
+  Returns `decision`, `reports`, and `log_file` path.
 
 ## TradingAgents Package
 

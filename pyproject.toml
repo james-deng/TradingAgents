@@ -9,6 +9,7 @@ dependencies = [
     "backtrader>=1.9.78.123",
     "chainlit>=2.5.5",
     "chromadb>=1.0.12",
+    "flask>=3.0.0",
     "eodhd>=1.0.32",
     "feedparser>=6.0.11",
     "finnhub-python>=2.4.23",
@@ -32,4 +33,5 @@ dependencies = [
     "tushare>=1.4.21",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    "python-dotenv>=1.0.0",
 ]

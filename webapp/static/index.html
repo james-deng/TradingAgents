@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TradingAgents Web</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f6f7fb; color: #222; }
+    header { background: #1f2937; color: #fff; padding: 16px 24px; }
+    main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .field { flex: 1 1 220px; display: flex; flex-direction: column; gap: 6px; }
+    label { font-weight: 600; }
+    input, select, button, textarea { padding: 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px; }
+    button { cursor: pointer; background: #2563eb; color: #fff; border: none; }
+    button:hover { background: #1d4ed8; }
+    .status { white-space: pre-wrap; font-family: Consolas, monospace; background: #0b1221; color: #fcd34d; padding: 12px; border-radius: 6px; min-height: 120px; }
+    .reports h3 { margin-top: 16px; }
+    .reports pre { background: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; }
+    .error { color: #b91c1c; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TradingAgents Web</h1>
+  </header>
+  <main>
+    <div class="card">
+      <h2>Run Analysis</h2>
+      <div id="error" class="error"></div>
+      <div class="row">
+        <div class="field">
+          <label for="ticker">Ticker</label>
+          <input id="ticker" value="NVDA" />
+        </div>
+        <div class="field">
+          <label for="analysis_date">Analysis Date</label>
+          <input id="analysis_date" type="date" />
+        </div>
+        <div class="field">
+          <label for="research_depth">Research Depth</label>
+          <select id="research_depth"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="provider">Provider</label>
+          <select id="provider"></select>
+        </div>
+        <div class="field">
+          <label for="backend_url">Backend URL</label>
+          <input id="backend_url" />
+        </div>
+        <div class="field">
+          <label for="shallow_thinker">Quick-Thinking Model</label>
+          <select id="shallow_thinker"></select>
+        </div>
+        <div class="field">
+          <label for="deep_thinker">Deep-Thinking Model</label>
+          <select id="deep_thinker"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="analysts">Analysts (Ctrl/Cmd-click to multi-select)</label>
+        <select id="analysts" multiple size="4"></select>
+      </div>
+      <button id="runBtn">Run</button>
+    </div>
+
+    <div class="card">
+      <h2>Status</h2>
+      <div class="status" id="statusBox">Ready.</div>
+    </div>
+
+    <div class="card reports" id="reportsCard" style="display:none;">
+      <h2>Reports</h2>
+      <div id="reports"></div>
+    </div>
+  </main>
+
+  <script>
+    const metadata = { providers: [], shallow_options: {}, deep_options: {}, analysts: [], research_depths: [] };
+    const statusBox = document.getElementById("statusBox");
+    const errorBox = document.getElementById("error");
+    const reportsCard = document.getElementById("reportsCard");
+    const reportsDiv = document.getElementById("reports");
+
+    async function loadMetadata() {
+      const res = await fetch("/metadata");
+      const data = await res.json();
+      Object.assign(metadata, data);
+      populateSelects();
+    }
+
+    function populateSelects() {
+      const providerSel = document.getElementById("provider");
+      const backendUrl = document.getElementById("backend_url");
+      const shallowSel = document.getElementById("shallow_thinker");
+      const deepSel = document.getElementById("deep_thinker");
+      const analystsSel = document.getElementById("analysts");
+      const depthSel = document.getElementById("research_depth");
+
+      providerSel.innerHTML = "";
+      metadata.providers.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.value;
+        opt.textContent = p.label;
+        opt.dataset.backend = p.backend_url;
+        providerSel.appendChild(opt);
+      });
+      providerSel.addEventListener("change", () => {
+        const selected = metadata.providers.find(p => p.value === providerSel.value);
+        backendUrl.value = selected ? selected.backend_url : "";
+        repopulateModels();
+      });
+      providerSel.value = metadata.providers[0]?.value || "openai";
+      backendUrl.value = metadata.providers[0]?.backend_url || "";
+
+      metadata.analysts.forEach(a => {
+        const opt = document.createElement("option");
+        opt.value = a.value;
+        opt.textContent = a.label;
+        analystsSel.appendChild(opt);
+      });
+      metadata.research_depths.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d.value;
+        opt.textContent = d.label;
+        depthSel.appendChild(opt);
+      });
+      depthSel.value = metadata.defaults?.research_depth ?? metadata.research_depths[0]?.value;
+
+      repopulateModels();
+    }
+
+    function repopulateModels() {
+      const provider = document.getElementById("provider").value;
+      const shallowSel = document.getElementById("shallow_thinker");
+      const deepSel = document.getElementById("deep_thinker");
+      shallowSel.innerHTML = "";
+      deepSel.innerHTML = "";
+      (metadata.shallow_options[provider] || []).forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.value;
+        opt.textContent = m.label;
+        shallowSel.appendChild(opt);
+      });
+      (metadata.deep_options[provider] || []).forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.value;
+        opt.textContent = m.label;
+        deepSel.appendChild(opt);
+      });
+    }
+
+    async function runAnalysis() {
+      errorBox.textContent = "";
+      reportsCard.style.display = "none";
+      reportsDiv.innerHTML = "";
+      statusBox.textContent = "Running...";
+
+      const analystsSel = document.getElementById("analysts");
+      const analysts = Array.from(analystsSel.selectedOptions).map(o => o.value);
+
+      const payload = {
+        ticker: document.getElementById("ticker").value.trim(),
+        analysis_date: document.getElementById("analysis_date").value,
+        research_depth: Number(document.getElementById("research_depth").value),
+        provider: document.getElementById("provider").value,
+        backend_url: document.getElementById("backend_url").value.trim(),
+        shallow_thinker: document.getElementById("shallow_thinker").value,
+        deep_thinker: document.getElementById("deep_thinker").value,
+        analysts: analysts.length ? analysts : undefined,
+      };
+
+      const res = await fetch("/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        errorBox.textContent = data.error || "Request failed";
+        statusBox.textContent = "Error.";
+        return;
+      }
+
+      statusBox.textContent = `Decision: ${data.decision || "N/A"}`;
+      if (data.reports) {
+        reportsCard.style.display = "block";
+        Object.entries(data.reports).forEach(([name, content]) => {
+          const title = name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+          const section = document.createElement("div");
+          const h3 = document.createElement("h3");
+          h3.textContent = title;
+          const pre = document.createElement("pre");
+          pre.textContent = content || "";
+          section.appendChild(h3);
+          section.appendChild(pre);
+          reportsDiv.appendChild(section);
+        });
+      }
+    }
+
+    document.getElementById("runBtn").addEventListener("click", () => {
+      runAnalysis().catch(err => {
+        console.error(err);
+        errorBox.textContent = err.message || "Unexpected error";
+        statusBox.textContent = "Error.";
+      });
+    });
+
+    // default date = today
+    document.getElementById("analysis_date").valueAsDate = new Date();
+    loadMetadata().catch(err => {
+      errorBox.textContent = "Failed to load metadata";
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
