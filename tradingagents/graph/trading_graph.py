@@ -35,6 +35,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.execution import AlpacaPaperClient
 
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
@@ -113,6 +114,11 @@ class TradingAgentsGraph:
         embedding_base, embedding_key = _resolve_embedding_settings(provider, self.config)
         self.config["embedding_backend_url"] = embedding_base
         self.config["embedding_api_key"] = embedding_key
+
+        # Optional paper-trading client (disabled by default)
+        self.alpaca_client = AlpacaPaperClient(
+            self.config.get("alpaca_paper_trading", {})
+        )
 
         # Update the interface's config
         set_config(self.config)
@@ -251,7 +257,13 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        decision = self.process_signal(final_state["final_trade_decision"])
+        order_result = self._maybe_execute_paper_trade(company_name, decision)
+        if order_result:
+            final_state["paper_trade_order"] = order_result
+            # Update log with order result
+            self._log_state(trade_date, final_state)
+        return final_state, decision
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
@@ -283,6 +295,7 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "paper_trade_order": final_state.get("paper_trade_order"),
         }
 
         # Save to file
@@ -316,3 +329,14 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def _maybe_execute_paper_trade(self, symbol: str, decision: str):
+        """Send a paper order to Alpaca if enabled and decision is actionable."""
+        if not self.alpaca_client or not self.alpaca_client.is_ready():
+            return {"status": "skipped", "reason": "Alpaca paper trading disabled or missing keys"}
+
+        side = decision.strip().lower()
+        if side not in ("buy", "sell"):
+            return {"status": "skipped", "reason": f"Non-actionable decision: {decision}"}
+
+        return self.alpaca_client.submit_order(symbol, side)

@@ -30,4 +30,13 @@ DEFAULT_CONFIG = {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
         # Example: "get_news": "openai",               # Override category default
     },
+    # Optional paper-trading integration (Alpaca)
+    "alpaca_paper_trading": {
+        "enabled": False,  # Set True to place paper trades
+        "api_key": os.getenv("ALPACA_API_KEY_ID"),
+        "api_secret": os.getenv("ALPACA_API_SECRET_KEY"),
+        "base_url": os.getenv("ALPACA_PAPER_BASE_URL", "https://paper-api.alpaca.markets"),
+        "order_notional": float(os.getenv("ALPACA_ORDER_NOTIONAL", "1000")),  # USD notional per BUY/SELL
+        "time_in_force": os.getenv("ALPACA_TIME_IN_FORCE", "day"),
+    },
 }

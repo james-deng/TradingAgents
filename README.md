@@ -138,6 +138,16 @@ cp .env.example .env
 # Edit .env with your actual API keys
 ```
 
+### Paper trading smoke test (Alpaca)
+
+To verify Alpaca paper-trading without running the full LLM workflow:
+1) Set these in `.env`: `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, optionally `ALPACA_PAPER_BASE_URL=https://paper-api.alpaca.markets`, `ALPACA_ORDER_NOTIONAL=1` (USD), `ALPACA_TIME_IN_FORCE=day`.
+2) Run the smoke test (places a $1 paper market buy for AAPL):  
+   ```bash
+   python scripts/test_alpaca_paper.py
+   ```
+3) The script prints readiness and the order response; check your Alpaca paper dashboard to confirm.
+
 **Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage’s open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
 
 ### CLI Usage
