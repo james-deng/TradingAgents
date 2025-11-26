@@ -9,10 +9,10 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "o4-mini",
-    "quick_think_llm": "gpt-4o-mini",
-    "backend_url": "https://api.openai.com/v1",
+    "llm_provider": "deepseek",
+    "deep_think_llm": "deepseek-reasoner",
+    "quick_think_llm": "deepseek-chat",
+    "backend_url": "https://api.deepseek.com/v1",
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
@@ -32,11 +32,12 @@ DEFAULT_CONFIG = {
     },
     # Optional paper-trading integration (Alpaca)
     "alpaca_paper_trading": {
-        "enabled": False,  # Set True to place paper trades
+        "enabled": True,  # Set True to place paper trades, otherwise False
         "api_key": os.getenv("ALPACA_API_KEY_ID"),
         "api_secret": os.getenv("ALPACA_API_SECRET_KEY"),
         "base_url": os.getenv("ALPACA_PAPER_BASE_URL", "https://paper-api.alpaca.markets"),
         "order_notional": float(os.getenv("ALPACA_ORDER_NOTIONAL", "1000")),  # USD notional per BUY/SELL
         "time_in_force": os.getenv("ALPACA_TIME_IN_FORCE", "day"),
+        "extended_hours": os.getenv("ALPACA_EXTENDED_HOURS", "false").lower() == "true",
     },
 }

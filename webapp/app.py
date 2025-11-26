@@ -117,6 +117,14 @@ def _build_config(payload: Dict[str, Any]) -> Dict[str, Any]:
     config["deep_think_llm"] = payload["deep_thinker"]
     config["backend_url"] = payload["backend_url"]
     config["llm_provider"] = payload["provider"].lower()
+
+    # add global news source
+    config["data_vendors"]["news_data"] = "openai"
+    config["tool_vendors"]["get_global_news"] = "openai"
+
+    # Enable paper trading
+    config["alpaca_paper_trading"]["enabled"] = True
+    
     return config
 
 

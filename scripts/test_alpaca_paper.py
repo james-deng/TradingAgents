@@ -28,7 +28,8 @@ import os
 def main():
     cfg = DEFAULT_CONFIG["alpaca_paper_trading"].copy()
     cfg["enabled"] = True
-    cfg["order_notional"] = 1  # $1 test order
+    cfg["order_notional"] = 1000  # $1000 test order (for market orders)
+    cfg["extended_hours"] = True  # allow outside RTH when supported
     # Refresh auth fields from env in case defaults were None
     cfg["api_key"] = os.getenv("ALPACA_API_KEY_ID") or cfg.get("api_key")
     cfg["api_secret"] = os.getenv("ALPACA_API_SECRET_KEY") or cfg.get("api_secret")
@@ -39,7 +40,16 @@ def main():
     # Helpful visibility
     print("Key present:", bool(cfg.get("api_key")), "Secret present:", bool(cfg.get("api_secret")))
     print("Base URL:", client.base_url)
-    result = client.submit_order("AAPL", "buy")
+    # Place a limit order: 1 share at a limit price (default $500 if not provided)
+    limit_price = float(os.getenv("ALPACA_TEST_LIMIT_PRICE", "500"))
+    qty = float(os.getenv("ALPACA_TEST_LIMIT_QTY", "1"))
+    result = client.submit_order(
+        "AAPL",
+        "buy",
+        order_type="limit",
+        qty=qty,
+        limit_price=limit_price,
+    )
     print("Order result:", result)
 
 

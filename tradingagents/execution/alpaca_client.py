@@ -17,6 +17,7 @@ class AlpacaPaperClient:
         )
         self.order_notional = config.get("order_notional", 1000)
         self.time_in_force = config.get("time_in_force", "day")
+        self.extended_hours = bool(config.get("extended_hours", False))
 
     def is_ready(self) -> bool:
         """Return True only when enabled and keys are present."""
@@ -34,17 +35,43 @@ class AlpacaPaperClient:
         return url
 
     def submit_order(
-        self, symbol: str, side: str, notional: Optional[float] = None
+        self,
+        symbol: str,
+        side: str,
+        notional: Optional[float] = None,
+        qty: Optional[float] = None,
+        order_type: str = "market",
+        limit_price: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Submit a simple market order by notional."""
-        order_notional = notional or self.order_notional
+        """Submit a simple order. Market supports notional; limit requires qty."""
+        side = side.lower()
+        order_type = order_type.lower()
+
         payload = {
             "symbol": symbol.upper(),
-            "side": side.lower(),
-            "type": "market",
+            "side": side,
+            "type": order_type,
             "time_in_force": self.time_in_force,
-            "notional": order_notional,
         }
+
+        if order_type == "market":
+            if qty is not None:
+                payload["qty"] = qty
+            else:
+                payload["notional"] = notional or self.order_notional
+        elif order_type == "limit":
+            if qty is None or limit_price is None:
+                return {
+                    "status": "error",
+                    "error": "Limit orders require qty and limit_price",
+                }
+            payload["qty"] = qty
+            payload["limit_price"] = limit_price
+        else:
+            return {"status": "error", "error": f"Unsupported order type: {order_type}"}
+
+        if self.extended_hours:
+            payload["extended_hours"] = True
 
         url = f"{self.base_url}/v2/orders"
         headers = {
