@@ -17,6 +17,7 @@ class AlpacaPaperClient:
         )
         self.order_notional = config.get("order_notional", 1000)
         self.time_in_force = config.get("time_in_force", "day")
+        self.order_qty = config.get("order_qty")
         self.extended_hours = bool(config.get("extended_hours", False))
 
     def is_ready(self) -> bool:
@@ -55,10 +56,13 @@ class AlpacaPaperClient:
         }
 
         if order_type == "market":
+            # Prefer qty (avoids fractional short restrictions); fall back to notional.
             if qty is not None:
                 payload["qty"] = qty
+            elif notional is not None:
+                payload["notional"] = notional
             else:
-                payload["notional"] = notional or self.order_notional
+                payload["qty"] = self.order_qty if hasattr(self, "order_qty") else 1
         elif order_type == "limit":
             if qty is None or limit_price is None:
                 return {
@@ -84,6 +88,19 @@ class AlpacaPaperClient:
             resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=10)
             resp.raise_for_status()
             return {"status": "submitted", "order": resp.json()}
+        except requests.HTTPError as exc:  # pragma: no cover - simple logging path
+            body = None
+            try:
+                body = resp.text
+            except Exception:
+                pass
+            logging.error("Failed to place Alpaca order: %s | body=%s", exc, body)
+            return {
+                "status": "error",
+                "error": str(exc),
+                "status_code": getattr(exc.response, "status_code", None),
+                "body": body,
+            }
         except Exception as exc:  # pragma: no cover - simple logging path
             logging.error("Failed to place Alpaca order: %s", exc)
             return {"status": "error", "error": str(exc)}

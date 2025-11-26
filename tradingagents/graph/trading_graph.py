@@ -339,4 +339,10 @@ class TradingAgentsGraph:
         if side not in ("buy", "sell"):
             return {"status": "skipped", "reason": f"Non-actionable decision: {decision}"}
 
-        return self.alpaca_client.submit_order(symbol, side)
+        qty = None
+        try:
+            qty = float(self.config.get("alpaca_paper_trading", {}).get("order_qty") or 1)
+        except Exception:
+            qty = 1
+
+        return self.alpaca_client.submit_order(symbol, side, qty=qty, order_type="market")

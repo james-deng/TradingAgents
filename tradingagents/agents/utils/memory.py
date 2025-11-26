@@ -15,7 +15,8 @@ class FinancialSituationMemory:
             api_key=config.get("embedding_api_key"),
         )
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
-        self.situation_collection = self.chroma_client.create_collection(name=name)
+        # Use get_or_create to avoid errors when the collection already exists (e.g., reused app instances)
+        self.situation_collection = self.chroma_client.get_or_create_collection(name=name)
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""

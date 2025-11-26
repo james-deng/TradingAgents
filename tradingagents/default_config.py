@@ -37,6 +37,7 @@ DEFAULT_CONFIG = {
         "api_secret": os.getenv("ALPACA_API_SECRET_KEY"),
         "base_url": os.getenv("ALPACA_PAPER_BASE_URL", "https://paper-api.alpaca.markets"),
         "order_notional": float(os.getenv("ALPACA_ORDER_NOTIONAL", "1000")),  # USD notional per BUY/SELL
+        "order_qty": float(os.getenv("ALPACA_ORDER_QTY", "1")),  # Share quantity per order
         "time_in_force": os.getenv("ALPACA_TIME_IN_FORCE", "day"),
         "extended_hours": os.getenv("ALPACA_EXTENDED_HOURS", "false").lower() == "true",
     },
